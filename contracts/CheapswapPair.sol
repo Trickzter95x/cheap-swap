@@ -1,4 +1,10 @@
+// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.17;
+
+import "./ICheapswapPair.sol";
+import "./ICheapswapFlashloan.sol";
+import "./CheapswapERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 library Math {
     function min(uint x, uint y) internal pure returns (uint z) {
@@ -48,7 +54,7 @@ contract CheapswapPair is ICheapswapPair, CheapswapERC20 {
         require(success && (data.length == 0 || abi.decode(data, (bool))), 'Cheapswap: TRANSFER_FAILED');
     }
 
-    constructor() public {
+    constructor() {
         factory = msg.sender;
     }
 
@@ -61,7 +67,7 @@ contract CheapswapPair is ICheapswapPair, CheapswapERC20 {
 
     // update reserves and, on the first call per block, price accumulators
     function _update(uint balance0, uint balance1) private {
-        require(balance0 <= uint112(-1) && balance1 <= uint112(-1), 'Cheapswap: OVERFLOW');
+        require(balance0 <= ~uint112(0) && balance1 <= ~uint112(0), 'Cheapswap: OVERFLOW');
         reserve0 = uint112(balance0);
         reserve1 = uint112(balance1);
         emit Sync(reserve0, reserve1);
@@ -91,7 +97,6 @@ contract CheapswapPair is ICheapswapPair, CheapswapERC20 {
 
     // this low-level function should be called from a contract which performs important safety checks
     function burn(address to) external lock returns (uint amount0, uint amount1) {
-        (uint112 _reserve0, uint112 _reserve1) = getReserves(); // gas savings
         address _token0 = token0;                                // gas savings
         address _token1 = token1;                                // gas savings
         uint balance0 = IERC20(_token0).balanceOf(address(this));
@@ -149,7 +154,7 @@ contract CheapswapPair is ICheapswapPair, CheapswapERC20 {
       address _token1 = token1;
       if (amount0Out > 0) _safeTransfer(_token0, to, amount0Out);
       if (amount1Out > 0) _safeTransfer(_token1, to, amount1Out);
-      ICheapswapFlashloan(to).flashloan(msg.sender, amount0Out, amount1Out, data)
+      ICheapswapFlashloan(to).flashloan(msg.sender, amount0Out, amount1Out, data);
       uint balance0 = IERC20(_token0).balanceOf(address(this));
       uint balance1 = IERC20(_token1).balanceOf(address(this));
       // Fees are 0.1% again.
@@ -162,12 +167,15 @@ contract CheapswapPair is ICheapswapPair, CheapswapERC20 {
     function skim(address to) external lock {
         address _token0 = token0; // gas savings
         address _token1 = token1; // gas savings
-        _safeTransfer(_token0, to, IERC20(_token0).balanceOf(address(this)).sub(reserve0));
-        _safeTransfer(_token1, to, IERC20(_token1).balanceOf(address(this)).sub(reserve1));
+        _safeTransfer(_token0, to, IERC20(_token0).balanceOf(address(this)) - reserve0);
+        _safeTransfer(_token1, to, IERC20(_token1).balanceOf(address(this)) - reserve1);
     }
 
     // force reserves to match balances
     function sync() external lock {
-        _update(IERC20(token0).balanceOf(address(this)), IERC20(token1).balanceOf(address(this)), reserve0, reserve1);
+        _update(
+            IERC20(token0).balanceOf(address(this)),
+            IERC20(token1).balanceOf(address(this))
+        );
     }
 }
