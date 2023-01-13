@@ -33,10 +33,13 @@ contract CheapswapPair is ICheapswapPair, CheapswapERC20 {
     address public factory;
     address public token0;
     address public token1;
+    address public userTokenFeeOwner;
 
     uint112 private reserve0;           // uses single storage slot, accessible via getReserves
     uint112 private reserve1;           // uses single storage slot, accessible via getReserves
-    uint8 private locked = 0;
+    uint8 private locked;
+    uint16 private userTokenFees;
+
     modifier lock() {
         require(locked == 0, 'Cheapswap: LOCKED');
         locked = 1;
@@ -59,10 +62,11 @@ contract CheapswapPair is ICheapswapPair, CheapswapERC20 {
     }
 
     // called once by the factory at time of deployment
-    function initialize(address _token0, address _token1) external {
+    function initialize(address _token0, address _token1, address tokenFeeOwner) external {
         require(msg.sender == factory, 'Cheapswap: FORBIDDEN'); // sufficient check
         token0 = _token0;
         token1 = _token1;
+        userTokenFeeOwner = tokenFeeOwner;
     }
 
     // update reserves and, on the first call per block, price accumulators
@@ -117,6 +121,13 @@ contract CheapswapPair is ICheapswapPair, CheapswapERC20 {
         emit Burn(msg.sender, amount0, amount1, to);
     }
 
+    event UserTokenFeesUpdated(uint16);
+    function setUserTokenFees(uint16 tokenFees) external {
+        require(msg.sender == userTokenFeeOwner, "CS: UNAUTH_UTF");
+        userTokenFees = tokenFees;
+        emit UserTokenFeesUpdated(tokenFees);
+    }
+
     // this low-level function should be called from a contract which performs important safety checks
     function swap(uint amount0Out, uint amount1Out, address to, bytes calldata data) external lock {
         require(amount0Out > 0 || amount1Out > 0, 'Cheapswap: INSUFFICIENT_OUTPUT_AMOUNT');
@@ -152,14 +163,16 @@ contract CheapswapPair is ICheapswapPair, CheapswapERC20 {
     function flashloan(address to, uint amount0Out, uint amount1Out, bytes calldata data) external lock {
       address _token0 = token0;
       address _token1 = token1;
+      uint _reserve0 = reserve0;
+      uint _reserve1 = reserve1;
       if (amount0Out > 0) _safeTransfer(_token0, to, amount0Out);
       if (amount1Out > 0) _safeTransfer(_token1, to, amount1Out);
       ICheapswapFlashloan(to).flashloan(msg.sender, amount0Out, amount1Out, data);
       uint balance0 = IERC20(_token0).balanceOf(address(this));
       uint balance1 = IERC20(_token1).balanceOf(address(this));
       // Fees are 0.1% again.
-      require(balance0 - reserve0 >= amount0Out / 1000, "CS: FL0");
-      require(balance1 - reserve1 >= amount1Out / 1000, "CS: FL1");
+      require(balance0 - _reserve0 >= amount0Out / 1000, "CS: FL0");
+      require(balance1 - _reserve1 >= amount1Out / 1000, "CS: FL1");
       _update(balance0, balance1);
     }
 
