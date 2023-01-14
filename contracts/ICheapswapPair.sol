@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.17;
 
+import "./IFeeTracker.sol";
+
 interface ICheapswapPair {
     event Mint(address indexed sender, uint amount0, uint amount1);
     event Burn(address indexed sender, uint amount0, uint amount1, address indexed to);
@@ -26,4 +28,10 @@ interface ICheapswapPair {
     function sync() external;
 
     function initialize(address, address, address) external;
+
+    // Additional cheapswap functionality.
+    function setUserTokenFees(uint16 tokenFees) external;
+    function flashloan(address to, uint amount0Out, uint amount1Out, bytes calldata data) external;
+    function userTokenFeeOwner() external returns(address);
+    function feeTracker() external returns(IFeeTracker);
 }

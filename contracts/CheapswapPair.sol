@@ -4,6 +4,7 @@ pragma solidity ^0.8.17;
 import "./ICheapswapFactory.sol";
 import "./ICheapswapPair.sol";
 import "./ICheapswapFlashloan.sol";
+import "./IFeeTracker.sol";
 import "./CheapswapERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
@@ -27,7 +28,7 @@ library Math {
     }
 }
 
-contract FeeTracker {
+contract FeeTracker is IFeeTracker {
 
     address public token0;
     address public token1;
@@ -53,7 +54,6 @@ contract FeeTracker {
         require(success && (data.length == 0 || abi.decode(data, (bool))), 'Cheapswap: TRANSFER_FAILED');
     }
 
-    event FeesClaimed(uint, uint);
     function claim(uint claim0, uint claim1, address to) public {
         require(msg.sender == userTokenFeeOwner, "Cheapswap: CLAIM");
         address pairFeeReceiver = ICheapswapFactory(factory).feeTaker();
@@ -110,7 +110,7 @@ contract CheapswapPair is ICheapswapPair, CheapswapERC20 {
     address public token0;
     address public token1;
     address public userTokenFeeOwner;
-    FeeTracker public feeTracker;
+    IFeeTracker public feeTracker;
 
     uint112 private reserve0;           // uses single storage slot, accessible via getReserves
     uint112 private reserve1;           // uses single storage slot, accessible via getReserves
