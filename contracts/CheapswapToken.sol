@@ -10,7 +10,7 @@ contract CheapswapToken is ERC20Burnable, Ownable {
   address public cheapswapPair;
 
   constructor(address cheapswapFactory, address wfmt) ERC20("CheapswapToken", "CST") {
-    cheapswapPair = ICheapswapFactory(cheapswapFactory).createPair(wfmt, address(this));
+    cheapswapPair = ICheapswapFactory(cheapswapFactory).createPair(wfmt, address(this), msg.sender);
     _mint(msg.sender, 1000000 ether);
   }
 

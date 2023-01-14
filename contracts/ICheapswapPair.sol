@@ -14,6 +14,7 @@ interface ICheapswapPair {
     );
     event Sync(uint112 reserve0, uint112 reserve1);
 
+    function getReserves() external view returns (uint112 _reserve0, uint112 _reserve1);
     function factory() external view returns (address);
     function token0() external view returns (address);
     function token1() external view returns (address);
@@ -24,5 +25,5 @@ interface ICheapswapPair {
     function skim(address to) external;
     function sync() external;
 
-    function initialize(address, address) external;
+    function initialize(address, address, address) external;
 }
