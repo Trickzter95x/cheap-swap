@@ -30,8 +30,11 @@ interface ICheapswapPair {
     function initialize(address, address, address) external;
 
     // Additional cheapswap functionality.
-    function setUserTokenFees(uint16 tokenFees) external;
+    function setUserTokenFees(uint16 tokenFee0, uint16 tokenFee1) external;
     function flashloan(address to, uint amount0Out, uint amount1Out, bytes calldata data) external;
     function userTokenFeeOwner() external returns(address);
-    function feeTracker() external returns(IFeeTracker);
+    
+    event FeesClaimed(uint, uint);
+    function claim(address to) external;
+    function claimFeeTaker(address to) external;
 }

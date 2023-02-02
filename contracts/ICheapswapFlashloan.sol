@@ -2,5 +2,5 @@
 pragma solidity ^0.8.17;
 
 interface ICheapswapFlashloan {
-  function flashloan(address to, uint amount0Out, uint amount1Out, bytes calldata data) external;
+  function flashloan(address to, uint amount0ToPayBack, uint amount1ToPayBack, bytes calldata data) external;
 }
