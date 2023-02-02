@@ -71,7 +71,7 @@ import chai, { expect } from 'chai'
 import { ethers } from "hardhat";
 import { BigNumber, Contract } from 'ethers'
 
-import { CheapswapFactory, CheapswapPair, FloashloanTester, TokenForPairing, TokenForPairingOther } from '../typechain-types';
+import { CheapswapFactory, CheapswapPair, TokenForPairing, TokenForPairingOther } from '../typechain-types';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 
 const MINIMUM_LIQUIDITY = BigNumber.from(10**3)
@@ -154,9 +154,7 @@ describe('UniswapV2Pair', () => {
       const [swapAmount, token0Amount, token1Amount, expectedOutputAmount] = swapTestCase
       await addLiquidity(token0Amount, token1Amount)
       await token0.transfer(pair.address, swapAmount)
-      await expect(pair.swap(0, expectedOutputAmount.add(1), owner.address, '0x', overrides)).to.be.revertedWith(
-        'Cheapswap: K'
-      )
+      await expect(pair.swap(0, expectedOutputAmount.add(1), owner.address, '0x', overrides)).to.be.revertedWithCustomError(pair, 'K')
       await pair.swap(0, expectedOutputAmount, owner.address, '0x', overrides)
     })
   })
@@ -172,9 +170,7 @@ describe('UniswapV2Pair', () => {
       const [outputAmount, token0Amount, token1Amount, inputAmount] = optimisticTestCase
       await addLiquidity(token0Amount, token1Amount)
       await token0.transfer(pair.address, inputAmount)
-      await expect(pair.swap(outputAmount.add(1), 0, owner.address, '0x', overrides)).to.be.revertedWith(
-        'Cheapswap: K'
-      )
+      await expect(pair.swap(outputAmount.add(1), 0, owner.address, '0x', overrides)).to.be.revertedWithCustomError(pair, 'K')
       await pair.swap(outputAmount, 0, owner.address, '0x', overrides)
     })
   })
@@ -185,19 +181,18 @@ describe('UniswapV2Pair', () => {
     await addLiquidity(token0Amount, token1Amount)
 
     const swapAmount = expandTo18Decimals(1)
-    const swapAmountAddedToPool = swapAmount.mul(9975).div(10000);
     const expectedOutputAmount = BigNumber.from('1662497915624478906')
     await token0.transfer(pair.address, swapAmount)
     await expect(pair.swap(0, expectedOutputAmount, owner.address, '0x', overrides))
       .to.emit(token1, 'Transfer')
       .withArgs(pair.address, owner.address, expectedOutputAmount)
       .to.emit(pair, 'Sync')
-      .withArgs(token0Amount.add(swapAmountAddedToPool), token1Amount.sub(expectedOutputAmount))
+      .withArgs(token0Amount.add(swapAmount), token1Amount.sub(expectedOutputAmount))
       .to.emit(pair, 'Swap')
       .withArgs(owner.address, swapAmount, 0, 0, expectedOutputAmount, owner.address)
 
     const reserves = await pair.getReserves()
-    expect(reserves[0]).to.eq(token0Amount.add(swapAmountAddedToPool))
+    expect(reserves[0]).to.eq(token0Amount.add(swapAmount))
     expect(reserves[1]).to.eq(token1Amount.sub(expectedOutputAmount))
     expect(await token0.balanceOf(pair.address)).to.eq(token0Amount.add(swapAmount))
     expect(await token1.balanceOf(pair.address)).to.eq(token1Amount.sub(expectedOutputAmount))
@@ -213,20 +208,19 @@ describe('UniswapV2Pair', () => {
     await addLiquidity(token0Amount, token1Amount)
 
     const swapAmount = expandTo18Decimals(1)
-    const swapAmountAddedToPool = swapAmount.mul(9975).div(10000);
     const expectedOutputAmount = BigNumber.from('453305446940074565')
     await token1.transfer(pair.address, swapAmount)
     await expect(pair.swap(expectedOutputAmount, 0, owner.address, '0x', overrides))
       .to.emit(token0, 'Transfer')
       .withArgs(pair.address, owner.address, expectedOutputAmount)
       .to.emit(pair, 'Sync')
-      .withArgs(token0Amount.sub(expectedOutputAmount), token1Amount.add(swapAmountAddedToPool))
+      .withArgs(token0Amount.sub(expectedOutputAmount), token1Amount.add(swapAmount))
       .to.emit(pair, 'Swap')
       .withArgs(owner.address, 0, swapAmount, expectedOutputAmount, 0, owner.address)
 
     const reserves = await pair.getReserves()
     expect(reserves[0]).to.eq(token0Amount.sub(expectedOutputAmount))
-    expect(reserves[1]).to.eq(token1Amount.add(swapAmountAddedToPool))
+    expect(reserves[1]).to.eq(token1Amount.add(swapAmount))
     expect(await token0.balanceOf(pair.address)).to.eq(token0Amount.sub(expectedOutputAmount))
     expect(await token1.balanceOf(pair.address)).to.eq(token1Amount.add(swapAmount))
     const totalSupplyToken0 = await token0.totalSupply()

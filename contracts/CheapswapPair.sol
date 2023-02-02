@@ -212,6 +212,13 @@ contract CheapswapPair is ICheapswapPair, CheapswapERC20 {
         emit UserTokenFeesUpdated(tokenFee0, tokenFee1);
     }
 
+    event UserTokenFeeOwnerUpdated(address);
+    function setUserTokenFeeOwner(address newFeeOwner) external {
+        require(msg.sender == userTokenFeeOwner, "CS: UNAUTH_UTF");
+        userTokenFeeOwner = newFeeOwner;
+        emit UserTokenFeeOwnerUpdated(newFeeOwner);
+    }
+
     // token0 and token1 static 0.1%. We keep 0.05% in the pool and 0.05% for cheapswap.
     // Our fee is a static 0.1% (very cheap!). Others commonly charge 0.2%-0.3% which is twice or more the amount.
     // Only take 50% of our fees to cheapswap - remaining 50% stays in the pool to incentivize people to fill the pool.
@@ -341,7 +348,7 @@ contract CheapswapPair is ICheapswapPair, CheapswapERC20 {
     }
 
     // Extra methods for fee takers.
-    function claim(address to) external {
+    function claim(address to) external lock {
         require(msg.sender == userTokenFeeOwner, "Cheapswap: CLAIM");
         address pairFeeReceiver = ICheapswapFactory(factory).feeTaker();
         uint _userToken0Fees = userToken0Fees;
@@ -358,17 +365,25 @@ contract CheapswapPair is ICheapswapPair, CheapswapERC20 {
             _safeTransfer(_token1, pairFeeReceiver, factoryToken1Fees);
             userToken1Fees = factoryToken1Fees = 0;
         }
+        _update(
+            IERC20(token0).balanceOf(address(this)),
+            IERC20(token1).balanceOf(address(this))
+        );
         emit FeesClaimed(_userToken0Fees, _userToken1Fees);
     }
 
     event FactoryFeesClaimed(uint, uint);
-    function claimFeeTaker(address to) external {
+    function claimFeeTaker(address to) external lock {
         require(msg.sender == ICheapswapFactory(factory).feeTaker(), "Cheapswap: CLAIMFT");
         uint _factoryToken0Fees = factoryToken0Fees;
         uint _factoryToken1Fees = factoryToken1Fees;
         if(_factoryToken0Fees > 0) _safeTransfer(token0, to, _factoryToken0Fees);
         if(_factoryToken1Fees > 0) _safeTransfer(token1, to, _factoryToken1Fees);
         factoryToken0Fees = factoryToken1Fees = 0;
+        _update(
+            IERC20(token0).balanceOf(address(this)),
+            IERC20(token1).balanceOf(address(this))
+        );
         emit FactoryFeesClaimed(_factoryToken0Fees, _factoryToken1Fees);
     }
 }
