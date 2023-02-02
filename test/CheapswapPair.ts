@@ -489,4 +489,34 @@ describe('UniswapV2Pair', () => {
     expect(await token1.balanceOf(owner.address)).to.eq(totalSupplyToken1.sub(1000))
   })
 
+  it('mint/burn with some fees in pair saved', async () => {
+    const token0Amount = expandTo18Decimals(3)
+    const token1Amount = expandTo18Decimals(3)
+    await addLiquidity(token0Amount, token1Amount)
+
+    const expectedLiquidity = expandTo18Decimals(3)
+    // Give alice some tokens to mint/burn.
+    await token0.transfer(alice.address, expandTo18Decimals(5));
+    await token1.transfer(alice.address, expandTo18Decimals(5));
+    // Execute a swap for both tokens so we get fees collected.
+    await token0.transfer(pair.address, expandTo18Decimals(1));
+    await pair.swap(0, 1, owner.address, '0x');
+    await token1.transfer(pair.address, expandTo18Decimals(1));
+    await pair.swap(1, 0, owner.address, '0x');
+    // Mint by alice.
+    const alicePairContract = await pair.connect(alice);
+    const aliceToken0 = await token0.connect(alice);
+    const aliceToken1 = await token1.connect(alice);
+    const aliceToken0BalanceBefore = await token0.balanceOf(alice.address);
+    const aliceToken1BalanceBefore = await token1.balanceOf(alice.address);
+    await aliceToken0.transfer(pair.address, token0Amount);
+    await aliceToken1.transfer(pair.address, token1Amount);
+    await alicePairContract.mint(alice.address, overrides);
+    // Burn. Token values should be exactly the same.
+    await alicePairContract.transfer(pair.address, pair.balanceOf(alice.address))
+    await alicePairContract.burn(alice.address);
+    expect(aliceToken0BalanceBefore.sub(await token0.balanceOf(alice.address))).to.lte(5);
+    expect(aliceToken1BalanceBefore.sub(await token1.balanceOf(alice.address))).to.lte(5);
+  })
+
 })
